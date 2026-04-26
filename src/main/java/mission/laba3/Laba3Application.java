@@ -8,6 +8,7 @@ public class Laba3Application {
 
 	public static void main(String[] args) {
 		SpringApplication.run(Laba3Application.class, args);
+                System.out.println("Проверка подключения репозитория");
 	}
 
 }
