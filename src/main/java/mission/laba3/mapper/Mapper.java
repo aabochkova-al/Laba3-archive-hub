@@ -4,6 +4,7 @@
  */
 package mission.laba3.mapper;
 
+import mission.laba3.dto.MissionDTO;
 import mission.laba3.entity.CurseEntity;
 import mission.laba3.entity.EconomicAssessmentEntity;
 import mission.laba3.entity.EnvironmentEntity;
@@ -171,5 +172,46 @@ public class Mapper {
         }
         
         return mission;
+    }
+    public MissionDTO toMissionDTO(MissionEntity entity) {
+        if (entity == null) return null;
+
+        MissionDTO dto = new MissionDTO();
+        dto.setId(entity.getId());
+        dto.setMissionId(entity.getMissionId());
+        dto.setDate(entity.getDate());
+        dto.setLocation(entity.getLocation());
+        dto.setOutcome(entity.getOutcome() != null ? entity.getOutcome().name() : null);
+        dto.setDamageCost(entity.getDamageCost());
+
+        // Curse
+        if (entity.getCurse() != null) {
+            dto.setCurseName(entity.getCurse().getName());
+            dto.setCurseThreatLevel(
+                entity.getCurse().getThreatLevel() != null 
+                    ? entity.getCurse().getThreatLevel().name() 
+                    : null
+            );
+        }
+
+        // Sorcerers (только имена)
+        if (entity.getSorcerers() != null) {
+            for (SorcererEntity se : entity.getSorcerers()) {
+                if (se.getName() != null) {
+                    dto.getSorcerers().add(se.getName());
+                }
+            }
+        }
+
+        // Techniques (только названия)
+        if (entity.getTechniques() != null) {
+            for (TechniqueEntity te : entity.getTechniques()) {
+                if (te.getName() != null) {
+                    dto.getTechniques().add(te.getName());
+                }
+            }
+        }
+
+        return dto;
     }
 }

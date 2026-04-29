@@ -9,6 +9,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import java.util.HashMap;
 import mission.laba3.entity.MissionEntity;
 import mission.laba3.service.MissionService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,7 +19,10 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
  
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import mission.laba3.dto.MissionDTO;
+import mission.laba3.mapper.Mapper;
 /**
  *
  * @author aleksandra
@@ -28,15 +32,23 @@ import java.util.Optional;
 public class MissionRestController {
     @Autowired
     private MissionService missionService;
+    
+    @Autowired
+    private Mapper mapper; 
      
     @Operation(summary = "Получить все миссии", description = "Возвращает список всех миссий из архива")
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "Список миссий успешно получен")
     })
     @GetMapping("/missions")
-    public ResponseEntity<List<MissionEntity>> getAllMissions() {
-        List<MissionEntity> missions = missionService.getAllMissions();
-        return ResponseEntity.ok(missions);
+    public ResponseEntity<List<MissionDTO>> getAllMissions() {
+        List<MissionEntity> entities = missionService.getAllMissions();
+
+        List<MissionDTO> dtos = entities.stream()
+                .map(mapper::toMissionDTO)
+                .toList();
+
+        return ResponseEntity.ok(dtos);
     }
     
     @Operation(summary = "Получить миссию по ID")
@@ -61,14 +73,18 @@ public class MissionRestController {
         }
         try {
             MissionEntity saved = missionService.uploadMission(file);
-            return ResponseEntity.status(HttpStatus.CREATED).body(saved);
+            MissionDTO dto = mapper.toMissionDTO(saved);
+
+            return ResponseEntity.status(HttpStatus.CREATED).body(dto);
+
         } catch (Exception e) {
+            e.printStackTrace();
             return ResponseEntity.badRequest().body("Ошибка: " + e.getMessage());
         }
     }
     
     @Operation(summary = "Удалить миссию из архива")
-    @DeleteMapping("/missions/{id}")
+    @DeleteMapping("/missions/{id}") 
     public ResponseEntity<Void> deleteMission(@PathVariable Long id) {
         if (missionService.getMissionById(id).isEmpty()) {
             return ResponseEntity.notFound().build();
@@ -76,6 +92,7 @@ public class MissionRestController {
         missionService.deleteMission(id);
         return ResponseEntity.noContent().build();
     }
+    
     @Operation(summary = "Сгенерировать отчет по миссии")
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "Отчет сгенерирован"),
@@ -83,13 +100,22 @@ public class MissionRestController {
     })
     @GetMapping("/missions/{id}/report")
     public ResponseEntity<String> generateReport(
-            @Parameter(description = "Внутренний ID миссии") @PathVariable Long id,
-            @Parameter(description = "Формат отчета: full или usual") @RequestParam(defaultValue = "full") String format) {
+            @Parameter(description = "Внутренний ID миссии") 
+            @PathVariable Long id,
+            @Parameter(description = "Формат отчета: full или usual") 
+            @RequestParam(defaultValue = "full") String format) {
+
         try {
             String report = missionService.generateReport(id, format);
-            return ResponseEntity.ok(report);
+            return ResponseEntity.ok()
+                    .header("Content-Type", "text/plain; charset=UTF-8")
+                    .body(report);
         } catch (RuntimeException e) {
             return ResponseEntity.notFound().build();
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.badRequest()
+                    .body("Ошибка при формировании отчета: " + e.getMessage());
         }
     }
 }

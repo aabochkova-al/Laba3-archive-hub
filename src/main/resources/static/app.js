@@ -41,17 +41,24 @@ async function uploadMission() {
             body: formData
         });
         
+        const text = await response.text(); // сначала читаем как текст
+        
         if (response.ok) {
-            const data = await response.json();
-            showUploadResult(`Миссия "${data.missionId}" успешно импортирована (ID: ${data.id})`, 'success');
+            let data;
+            try {
+                data = JSON.parse(text);
+            } catch (e) {
+                data = { missionId: 'unknown', id: 'unknown' };
+            }
+            
+            showUploadResult(`Миссия "${data.missionId || '—'}" успешно импортирована (ID: ${data.id})`, 'success');
             fileInput.value = '';
             loadMissions();
         } else {
-            const error = await response.text();
-            showUploadResult(`Ошибка: ${error}`, 'error');
+            showUploadResult(`Ошибка: ${text}`, 'error');
         }
     } catch (error) {
-        showUploadResult(`Ошибка: ${error.message}`, 'error');
+        showUploadResult(`Ошибка сети: ${error.message}`, 'error');
     }
 }
 
@@ -72,9 +79,25 @@ async function loadMissions() {
     
     try {
         const response = await fetch(`${API_BASE}/missions`);
-        const missions = await response.json();
         
-        if (missions.length === 0) {
+        if (!response.ok) {
+            const errorText = await response.text();
+            missionsList.innerHTML = `<div class="error">Ошибка загрузки списка: ${errorText}</div>`;
+            return;
+        }
+        
+        const text = await response.text();
+        let missions = [];
+        
+        try {
+            missions = JSON.parse(text);
+        } catch (e) {
+            console.error("Не удалось распарсить JSON миссий:", e);
+            missionsList.innerHTML = `<div class="error">Ошибка формата данных от сервера</div>`;
+            return;
+        }
+        
+        if (!Array.isArray(missions) || missions.length === 0) {
             missionsList.innerHTML = '<div class="empty-message">Архив пуст. Загрузите первую миссию.</div>';
             return;
         }
@@ -86,7 +109,7 @@ async function loadMissions() {
         
         for (const m of missions) {
             html += '<tr>';
-            html += `<td>${m.id}</td>`;
+            html += `<td>${m.id || '-'}</td>`;
             html += `<td>${m.missionId || '-'}</td>`;
             html += `<td>${m.date || '-'}</td>`;
             html += `<td>${m.location || '-'}</td>`;
@@ -102,34 +125,10 @@ async function loadMissions() {
         document.querySelectorAll('.delete-btn').forEach(btn => {
             btn.addEventListener('click', () => deleteMission(parseInt(btn.dataset.id)));
         });
+        
     } catch (error) {
         missionsList.innerHTML = `<div class="error">Ошибка загрузки: ${error.message}</div>`;
-    }
-}
-
-// Генерация отчета
-async function generateReport() {
-    const id = reportId.value.trim();
-    
-    if (!id) {
-        reportResult.innerHTML = '<div class="error">Введите ID миссии</div>';
-        return;
-    }
-    
-    const format = reportFormat.value;
-    reportResult.innerHTML = '<div class="loading">Формирование отчета...</div>';
-    
-    try {
-        const response = await fetch(`${API_BASE}/missions/${id}/report?format=${format}`);
-        
-        if (response.ok) {
-            const report = await response.text();
-            reportResult.innerHTML = `<pre style="margin:0; white-space:pre-wrap; font-family:monospace;">${escapeHtml(report)}</pre>`;
-        } else {
-            reportResult.innerHTML = `<div class="error">Миссия с ID ${id} не найдена</div>`;
-        }
-    } catch (error) {
-        reportResult.innerHTML = `<div class="error">Ошибка: ${error.message}</div>`;
+        console.error(error);
     }
 }
 
@@ -149,10 +148,40 @@ async function deleteMission(id) {
                 reportId.value = '';
             }
         } else {
-            alert('Ошибка при удалении');
+            const errorText = await response.text();
+            alert('Ошибка при удалении: ' + errorText);
         }
     } catch (error) {
-        alert('Ошибка: ' + error.message);
+        alert('Ошибка сети: ' + error.message);
+    }
+}
+
+async function generateReport() {
+    const id = reportId.value.trim();
+    
+    if (!id) {
+        reportResult.innerHTML = '<div class="error">Введите ID миссии</div>';
+        return;
+    }
+    
+    const format = reportFormat.value;
+    reportResult.innerHTML = '<div class="loading">Формирование отчета...</div>';
+    
+    try {
+        const response = await fetch(`${API_BASE}/missions/${id}/report?format=${format}`);
+        
+        if (response.ok) {
+            const reportText = await response.text();
+            reportResult.innerHTML = `<pre style="margin:0; white-space:pre-wrap; font-family:monospace; background:#f8f9fa; padding:12px; border-radius:8px;">${escapeHtml(reportText)}</pre>`;
+        } else if (response.status === 404) {
+            reportResult.innerHTML = `<div class="error">Миссия с ID ${id} не найдена</div>`;
+        } else {
+            const errorText = await response.text();
+            reportResult.innerHTML = `<div class="error">Ошибка: ${errorText}</div>`;
+        }
+    } catch (error) {
+        reportResult.innerHTML = `<div class="error">Ошибка сети: ${error.message}</div>`;
+        console.error(error);
     }
 }
 

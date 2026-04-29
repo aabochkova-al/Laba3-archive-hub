@@ -19,85 +19,148 @@ import java.util.Scanner;
  */
 public class TxtParser extends BasicParser{
      @Override
-    protected Map<String, Object> parseToMap(String filepath) throws IOException {
-        // Читаем файл
+     protected Map<String, Object> parseToMap(String filepath) throws IOException {
         List<String> lines = new ArrayList<>();
         try (Scanner scanner = new Scanner(new File(filepath))) {
             while (scanner.hasNextLine()) {
                 lines.add(scanner.nextLine());
             }
         }
- 
-        // Определяем формат файла
-        boolean hasSections = lines.stream().anyMatch(l -> l.trim().startsWith("[") && l.trim().endsWith("]"));
-        boolean hasColonFormat = lines.stream().anyMatch(l -> l.contains(":") && !l.trim().startsWith("["));
-        boolean hasEqualsFormat = lines.stream().anyMatch(l -> l.contains("=") && !l.trim().startsWith("#"));
- 
-        if (hasSections && hasEqualsFormat) {
- 
-            return convertSectionFormat(parseSectionFormat(lines));
-        } else if (hasColonFormat && !hasSections) {
-
-            return parseColonFormat(lines);
-        } else if (hasEqualsFormat) {
-
-            return convertSectionFormat(parseSectionFormat(lines));
+       
+        boolean hasSectionBrackets = lines.stream().anyMatch(l -> l.trim().startsWith("[") && l.trim().endsWith("]"));
+        
+        if (hasSectionBrackets) {
+            return parseSectionFormatImproved(lines);
         }
- 
-        throw new IOException("Неизвестный формат TXT файла");
+        
+        boolean hasColonFormat = lines.stream().anyMatch(l -> l.contains(":") && !l.trim().startsWith("["));
+        if (hasColonFormat) {
+            return parseColonFormat(lines);
+        }
+        return parseColonFormat(lines);
     }
- 
-
-    private Map<String, String> parseSectionFormat(List<String> lines) {
-        Map<String, String> data = new HashMap<>();
-        String currentSection = "";
-        Map<String, Integer> sectionCounters = new HashMap<>();
- 
+    
+    private Map<String, Object> parseSectionFormatImproved(List<String> lines) {
+        Map<String, Object> result = new HashMap<>();
+        
+        List<Map<String, String>> sorcerersList = new ArrayList<>();
+        List<Map<String, Object>> techniquesList = new ArrayList<>();
+        
+        String currentSection = null;
+        Map<String, String> currentSorcerer = null;
+        Map<String, Object> currentTechnique = null;
+        Map<String, String> currentCurse = null;
+        Map<String, Object> currentEnvironment = null;
+        
         for (String line : lines) {
             line = line.trim();
             if (line.isEmpty() || line.startsWith("#")) continue;
- 
+            
             if (line.startsWith("[") && line.endsWith("]")) {
-                currentSection = line.substring(1, line.length() - 1).toLowerCase();
-                sectionCounters.put(currentSection, sectionCounters.getOrDefault(currentSection, -1) + 1);
+                String sectionName = line.substring(1, line.length() - 1).toUpperCase();
+                currentSection = sectionName;
+                
+                if ("SORCERER".equals(sectionName)) {
+                    if (currentSorcerer != null && !currentSorcerer.isEmpty()) {
+                        sorcerersList.add(currentSorcerer);
+                    }
+                    currentSorcerer = new HashMap<>();
+                } else if ("TECHNIQUE".equals(sectionName)) {
+                    if (currentTechnique != null && !currentTechnique.isEmpty()) {
+                        techniquesList.add(currentTechnique);
+                    }
+                    currentTechnique = new HashMap<>();
+                } else if ("CURSE".equals(sectionName)) {
+                    currentCurse = new HashMap<>();
+                } else if ("ENVIRONMENT".equals(sectionName)) {
+                    currentEnvironment = new HashMap<>();
+                }
                 continue;
             }
- 
+            
             int eqIndex = line.indexOf('=');
-            if (eqIndex > 0) {
-                String key = line.substring(0, eqIndex).trim();
-                String value = line.substring(eqIndex + 1).trim();
- 
-                if (!currentSection.isEmpty() && !currentSection.equals("mission")) {
-                    int counter = sectionCounters.getOrDefault(currentSection, -1);
-                    key = currentSection + "[" + counter + "]." + key;
+            if (eqIndex <= 0) continue;
+            
+            String key = line.substring(0, eqIndex).trim();
+            String value = line.substring(eqIndex + 1).trim();
+            
+            if ("MISSION".equals(currentSection)) {
+                switch (key) {
+                    case "missionId": result.put("missionId", value); break;
+                    case "date": result.put("date", value); break;
+                    case "location": result.put("location", value); break;
+                    case "outcome": result.put("outcome", value); break;
+                    case "damageCost":
+                        try { result.put("damageCost", Integer.parseInt(value)); }
+                        catch (NumberFormatException e) { result.put("damageCost", value); }
+                        break;
+                    case "notes": result.put("notes", value); break;
                 }
-                data.put(key, value);
+            } else if ("CURSE".equals(currentSection) && currentCurse != null) {
+                currentCurse.put(key, value);
+            } else if ("SORCERER".equals(currentSection) && currentSorcerer != null) {
+                currentSorcerer.put(key, value);
+            } else if ("TECHNIQUE".equals(currentSection) && currentTechnique != null) {
+                if ("damage".equals(key)) {
+                    try { currentTechnique.put("damage", Integer.parseInt(value)); }
+                    catch (NumberFormatException e) { currentTechnique.put("damage", value); }
+                } else {
+                    currentTechnique.put(key, value);
+                }
+            } else if ("ENVIRONMENT".equals(currentSection) && currentEnvironment != null) {
+                if ("cursedEnergyDensity".equals(key)) {
+                    try { currentEnvironment.put("cursedEnergyDensity", Integer.parseInt(value)); }
+                    catch (NumberFormatException e) { currentEnvironment.put("cursedEnergyDensity", value); }
+                } else {
+                    currentEnvironment.put(key, value);
+                }
             }
         }
-        return data;
+
+        if (currentSorcerer != null && !currentSorcerer.isEmpty()) {
+            sorcerersList.add(currentSorcerer);
+        }
+        if (currentTechnique != null && !currentTechnique.isEmpty()) {
+            techniquesList.add(currentTechnique);
+        }
+
+        if (currentCurse != null && !currentCurse.isEmpty()) {
+            result.put("curse", currentCurse);
+        }
+        
+        if (!sorcerersList.isEmpty()) {
+            result.put("sorcerers", sorcerersList);
+        }
+        
+        if (!techniquesList.isEmpty()) {
+            result.put("techniques", techniquesList);
+        }
+        
+        if (currentEnvironment != null && !currentEnvironment.isEmpty()) {
+            result.put("environment", currentEnvironment);
+        }
+        
+        return result;
     }
-       private Map<String, Object> parseColonFormat(List<String> lines) {
+
+    private Map<String, Object> parseColonFormat(List<String> lines) {
         Map<String, Object> result = new HashMap<>();
         Map<String, String> flatData = new HashMap<>();
- 
+        
         for (String line : lines) {
             line = line.trim();
             if (line.isEmpty() || line.startsWith("#")) continue;
- 
-            // Ищем первое двоеточие
+            
             int colonIndex = line.indexOf(':');
             if (colonIndex <= 0) continue;
- 
+            
             String key = line.substring(0, colonIndex).trim();
             String value = line.substring(colonIndex + 1).trim();
- 
             if (!value.isEmpty()) {
                 flatData.put(key, value);
             }
         }
- 
-        // Конвертируем плоскую карту в структурированную
+        
         // Основные поля
         if (flatData.containsKey("missionId")) result.put("missionId", flatData.get("missionId"));
         if (flatData.containsKey("date")) result.put("date", flatData.get("date"));
@@ -105,9 +168,11 @@ public class TxtParser extends BasicParser{
         if (flatData.containsKey("outcome")) result.put("outcome", flatData.get("outcome"));
         if (flatData.containsKey("damageCost")) {
             try { result.put("damageCost", Integer.parseInt(flatData.get("damageCost"))); }
-            catch (NumberFormatException ignored) {}
+            catch (NumberFormatException e) {}
         }
- 
+        if (flatData.containsKey("comment")) result.put("notes", flatData.get("comment"));
+        if (flatData.containsKey("note")) result.put("notes", flatData.get("note"));
+        
         // Проклятие
         if (flatData.containsKey("curse.name") || flatData.containsKey("curse.threatLevel")) {
             Map<String, String> curse = new HashMap<>();
@@ -115,7 +180,7 @@ public class TxtParser extends BasicParser{
             if (flatData.containsKey("curse.threatLevel")) curse.put("threatLevel", flatData.get("curse.threatLevel"));
             result.put("curse", curse);
         }
- 
+        
         // Маги
         List<Map<String, String>> sorcerers = new ArrayList<>();
         int i = 0;
@@ -128,7 +193,7 @@ public class TxtParser extends BasicParser{
             i++;
         }
         if (!sorcerers.isEmpty()) result.put("sorcerers", sorcerers);
- 
+        
         // Техники
         List<Map<String, Object>> techniques = new ArrayList<>();
         int j = 0;
@@ -141,75 +206,13 @@ public class TxtParser extends BasicParser{
                 t.put("owner", flatData.get("technique[" + j + "].owner"));
             if (flatData.containsKey("technique[" + j + "].damage")) {
                 try { t.put("damage", Integer.parseInt(flatData.get("technique[" + j + "].damage"))); }
-                catch (NumberFormatException ignored) {}
+                catch (NumberFormatException e) {}
             }
             techniques.add(t);
             j++;
         }
         if (!techniques.isEmpty()) result.put("techniques", techniques);
- 
-        return result;
-    }
-
-    private Map<String, Object> convertSectionFormat(Map<String, String> firstData) {
-        Map<String, Object> result = new HashMap<>();
- 
-        if (firstData.containsKey("missionId")) result.put("missionId", firstData.get("missionId"));
-        if (firstData.containsKey("date")) result.put("date", firstData.get("date"));
-        if (firstData.containsKey("location")) result.put("location", firstData.get("location"));
-        if (firstData.containsKey("outcome")) result.put("outcome", firstData.get("outcome"));
-        if (firstData.containsKey("damageCost")) {
-            try { result.put("damageCost", Integer.parseInt(firstData.get("damageCost"))); }
-            catch (NumberFormatException ignored) {}
-        }
- 
-        if (firstData.containsKey("curse[0].name") || firstData.containsKey("curse[0].threatLevel")) {
-            Map<String, String> curse = new HashMap<>();
-            if (firstData.containsKey("curse[0].name")) curse.put("name", firstData.get("curse[0].name"));
-            if (firstData.containsKey("curse[0].threatLevel")) curse.put("threatLevel", firstData.get("curse[0].threatLevel"));
-            result.put("curse", curse);
-        }
- 
-        List<Map<String, String>> sorcerers = new ArrayList<>();
-        int si = 0;
-        while (firstData.containsKey("sorcerer[" + si + "].name")) {
-            Map<String, String> s = new HashMap<>();
-            s.put("name", firstData.get("sorcerer[" + si + "].name"));
-            if (firstData.containsKey("sorcerer[" + si + "].rank"))
-                s.put("rank", firstData.get("sorcerer[" + si + "].rank"));
-            sorcerers.add(s);
-            si++;
-        }
-        if (!sorcerers.isEmpty()) result.put("sorcerers", sorcerers);
- 
-        List<Map<String, Object>> techniques = new ArrayList<>();
-        int ti = 0;
-        while (firstData.containsKey("technique[" + ti + "].name")) {
-            Map<String, Object> t = new HashMap<>();
-            t.put("name", firstData.get("technique[" + ti + "].name"));
-            if (firstData.containsKey("technique[" + ti + "].type"))
-                t.put("type", firstData.get("technique[" + ti + "].type"));
-            if (firstData.containsKey("technique[" + ti + "].owner"))
-                t.put("owner", firstData.get("technique[" + ti + "].owner"));
-            if (firstData.containsKey("technique[" + ti + "].damage")) {
-                try { t.put("damage", Integer.parseInt(firstData.get("technique[" + ti + "].damage"))); }
-                catch (NumberFormatException ignored) {}
-            }
-            techniques.add(t);
-            ti++;
-        }
-        if (!techniques.isEmpty()) result.put("techniques", techniques);
- 
-        if (firstData.containsKey("environment[0].weather") || firstData.containsKey("environment[0].timeOfDay")) {
-            Map<String, Object> env = new HashMap<>();
-            if (firstData.containsKey("environment[0].weather")) env.put("weather", firstData.get("environment[0].weather"));
-            if (firstData.containsKey("environment[0].timeOfDay")) env.put("timeOfDay", firstData.get("environment[0].timeOfDay"));
-            if (firstData.containsKey("environment[0].visibility")) env.put("visibility", firstData.get("environment[0].visibility"));
-            if (firstData.containsKey("environment[0].cursedEnergyDensity"))
-                env.put("cursedEnergyDensity", firstData.get("environment[0].cursedEnergyDensity"));
-            result.put("environment", env);
-        }
- 
+        
         return result;
     }
  
