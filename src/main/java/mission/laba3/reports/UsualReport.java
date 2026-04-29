@@ -13,21 +13,25 @@ import mission.laba3.model.Mission;
 public class UsualReport implements Formatter{
 
     @Override
-    public void printReport(Mission mission) {
-        System.out.println("Краткий отчет: ");
-        System.out.println("  ID:     " + mission.getMissionId());
-        System.out.println("  Дата:   " + mission.getDate());
-        System.out.println("  Место:  " + mission.getLocation());
-        System.out.println("  Статус: " + mission.getOutcome());
-        
+    public String generateReport(Mission mission) {
+        StringBuilder sb = new StringBuilder();
+
+        sb.append("Краткий отчет:\n");
+        sb.append("  ID:     ").append(mission.getMissionId()).append("\n");
+        sb.append("  Дата:   ").append(mission.getDate()).append("\n");
+        sb.append("  Место:  ").append(mission.getLocation()).append("\n");
+        sb.append("  Статус: ").append(mission.getOutcome()).append("\n");
+
         if (mission.getCurse() != null) {
-            System.out.println("  Угроза: " + mission.getCurse().getThreatLevel());
+            sb.append("  Угроза: ").append(mission.getCurse().getThreatLevel()).append("\n");
         }
-        
+
         int sorcerersCount = mission.getSorcerers() != null ? mission.getSorcerers().size() : 0;
         int techniquesCount = mission.getTechniques() != null ? mission.getTechniques().size() : 0;
-        System.out.println("  Магов:  " + sorcerersCount);
-        System.out.println("  Техник: " + techniquesCount);
+        sb.append("  Магов:  ").append(sorcerersCount).append("\n");
+        sb.append("  Техник: ").append(techniquesCount).append("\n");
+
+        return sb.toString();
     }
     
 

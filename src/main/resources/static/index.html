@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<!--
+Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
+Click nbfs://nbhost/SystemFileSystem/Templates/Other/html.html to edit this template
+-->
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Архив миссий | Токийский магический колледж</title>
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Архив миссий</h1>
+        <p class="subtitle">Токийский магический колледж — система хранения и анализа миссий</p>
+        
+        <div class="grid">
+            <!-- Левая колонка: загрузка и отчет -->
+            <div class="left-column">
+                <!-- Блок загрузки -->
+                <div class="card">
+                    <h2>Загрузка миссии</h2>
+                    <div class="upload-area" id="uploadArea">
+                        <p>Выберите файл миссии</p>
+                        <p class="upload-hint">Поддерживаются форматы: JSON, XML, TXT, YAML</p>
+                        <input type="file" id="fileInput" accept=".json,.xml,.txt,.yaml">
+                        <button id="uploadBtn">Импортировать</button>
+                    </div>
+                    <div id="uploadResult" class="result-message"></div>
+                </div>
+                
+                <!-- Блок отчета -->
+                <div class="card">
+                    <h2>Формирование отчета</h2>
+                    <div class="report-controls">
+                        <div class="input-group">
+                            <label for="reportId">ID миссии:</label>
+                            <input type="number" id="reportId" placeholder="Введите числовой ID">
+                        </div>
+                        <div class="input-group">
+                            <label for="reportFormat">Тип отчета:</label>
+                            <select id="reportFormat">
+                                <option value="full">Полный отчет</option>
+                                <option value="usual">Краткий отчет</option>
+                            </select>
+                        </div>
+                        <button id="generateBtn">Сформировать отчет</button>
+                    </div>
+                    <div id="reportResult" class="report-box"></div>
+                </div>
+            </div>
+            
+            <!-- Правая колонка: архив -->
+            <div class="right-column">
+                <div class="card">
+                    <h2>Архив миссий</h2>
+                    <button id="refreshBtn" class="secondary-btn">Обновить список</button>
+                    <div id="missionsList" class="missions-table-wrapper"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="/app.js"></script>
+</body>
+</html>

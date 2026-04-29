@@ -76,4 +76,20 @@ public class MissionRestController {
         missionService.deleteMission(id);
         return ResponseEntity.noContent().build();
     }
+    @Operation(summary = "Сгенерировать отчет по миссии")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Отчет сгенерирован"),
+        @ApiResponse(responseCode = "404", description = "Миссия не найдена")
+    })
+    @GetMapping("/missions/{id}/report")
+    public ResponseEntity<String> generateReport(
+            @Parameter(description = "Внутренний ID миссии") @PathVariable Long id,
+            @Parameter(description = "Формат отчета: full или usual") @RequestParam(defaultValue = "full") String format) {
+        try {
+            String report = missionService.generateReport(id, format);
+            return ResponseEntity.ok(report);
+        } catch (RuntimeException e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
 }

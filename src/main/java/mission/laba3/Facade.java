@@ -104,7 +104,7 @@ public class Facade {
             formatter = formatters.get(defaultFormatName);
         }
         
-        formatter.printReport(mission);
+//        formatter.printReport(mission);
     }
     
     public List<String> getAvailableFormats() {

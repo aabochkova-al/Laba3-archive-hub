@@ -13,6 +13,7 @@ import mission.laba3.model.Mission;
  * @author aleksandra
  */
 public interface Formatter {
-    void printReport(Mission mission);
+    //void printReport(Mission mission);
+    String generateReport(Mission mission);
     String getName();
 }

@@ -19,7 +19,8 @@ public class Laba3Application {
             System.out.println("Веб-интерфейс: http://localhost:8080");
             System.out.println("Swagger API:   http://localhost:8080/swagger-ui.html");
             System.out.println("------");
-            
+  	}
+}          
             
 //                ParserFactory.setup();
 //                Facade facade = new Facade();
@@ -91,5 +92,3 @@ public class Laba3Application {
 //
 //            }
     
-	}
-}
